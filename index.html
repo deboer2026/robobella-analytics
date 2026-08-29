@@ -6,6 +6,8 @@
   <meta name="description"
         content="RoboBella Analytics is an internal social media analytics tool for RoboBella accounts.">
   <title>RoboBella Analytics</title>
+  <link rel="icon" type="image/png" href="app-icon.png">
+  <link rel="apple-touch-icon" href="app-icon.png">
 
   <style>
     :root {
@@ -41,6 +43,25 @@
       border-radius: 999px;
       color: #b7ccff;
       font-size: 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #dbe7ff;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .app-icon {
+      width: 52px;
+      height: 52px;
+      object-fit: cover;
+      object-position: center 30%;
+      border: 1px solid #47618f;
+      border-radius: 14px;
+      background: #101827;
     }
 
     h1 {
@@ -82,6 +103,40 @@
       line-height: 1.6;
     }
 
+    .tiktok-card {
+      margin-top: 24px;
+    }
+
+    .connect-button {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 10px;
+      background: #b7ccff;
+      color: #08101d;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .connect-button:hover { background: #d2dfff; }
+    .connect-button:disabled { cursor: wait; opacity: .7; }
+
+    .connection-status { color: #aeb7c8; }
+    .account-head { display: flex; gap: 16px; align-items: center; }
+    .account-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: #19284d; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+    .stat { padding: 14px; border-radius: 12px; background: #101827; }
+    .stat b { display: block; margin-top: 4px; font-size: 21px; }
+    .stat span { color: #aeb7c8; font-size: 13px; }
+    .video-list { display: grid; gap: 12px; margin-top: 18px; }
+    .video { display: grid; grid-template-columns: 96px 1fr; gap: 14px; padding: 12px; border-radius: 12px; background: #101827; }
+    .video img { width: 96px; height: 96px; object-fit: cover; border-radius: 9px; background: #19284d; }
+    .video h3 { margin: 0 0 6px; font-size: 16px; }
+    .video p { margin: 4px 0; font-size: 14px; }
+    .hidden { display: none; }
+
     footer {
       display: flex;
       flex-wrap: wrap;
@@ -111,7 +166,10 @@
 
 <body>
   <main>
-    <span class="badge">RoboBella Project</span>
+    <div class="brand">
+      <img class="app-icon" src="app-icon.png" alt="RoboBella Analytics app icon">
+      <span class="badge">RoboBella Project</span>
+    </div>
 
     <h1>RoboBella Analytics</h1>
 
@@ -141,9 +199,40 @@ engagement across supported platforms.
       <article class="card">
         <h2>TikTok</h2>
         <p>
-          TikTok account analytics integration is currently being prepared.
+          Connect an authorized TikTok account to review profile details,
+          account statistics and public-video performance.
         </p>
       </article>
+    </section>
+    <section class="card tiktok-card" aria-labelledby="tiktok-heading">
+      <h2 id="tiktok-heading">TikTok Account</h2>
+      <div id="tiktokDisconnected">
+        <p>
+          TikTokアカウントを接続すると、プロフィール、アカウント統計、公開動画のパフォーマンスを確認できます。
+        </p>
+        <button class="connect-button" id="connectTikTok" type="button">TikTokと接続</button>
+      </div>
+      <p class="connection-status" id="tiktokStatus" aria-live="polite"></p>
+      <div class="hidden" id="tiktokConnected">
+        <div class="account-head">
+          <img class="account-avatar" id="tiktokAvatar" alt="TikTok account avatar">
+          <div>
+            <h3 id="tiktokDisplayName"></h3>
+            <p id="tiktokUsername"></p>
+            <p id="tiktokOpenId"></p>
+            <a id="tiktokProfileUrl" target="_blank" rel="noopener noreferrer">View TikTok profile</a>
+          </div>
+        </div>
+        <p id="tiktokBio"></p>
+        <div class="stats" aria-label="TikTok account statistics">
+          <div class="stat"><span>Followers</span><b id="tiktokFollowers">—</b></div>
+          <div class="stat"><span>Following</span><b id="tiktokFollowing">—</b></div>
+          <div class="stat"><span>Likes</span><b id="tiktokLikes">—</b></div>
+          <div class="stat"><span>Videos</span><b id="tiktokVideosCount">—</b></div>
+        </div>
+        <h3 style="margin:28px 0 0">Recent TikTok Videos</h3>
+        <div class="video-list" id="tiktokVideoList"></div>
+      </div>
     </section>
 <section class="card" style="margin-top: 24px;">
   <h2>How it works</h2>
@@ -169,5 +258,137 @@ engagement across supported platforms.
       <a href="terms.html">Terms of Service</a>
     </footer>
   </main>
+  <script>
+    (function () {
+      'use strict';
+      var backendUrl = 'https://script.google.com/macros/s/AKfycbzrL9ixRCYC7-qd7Ypaq8i0QIFoDx2_yZzMtX-GjAXTzHkgWMntGcoyoYfPcrVefIY6fw/exec';
+      var expectedSession = new URLSearchParams(window.location.search).get('tiktok_session');
+      var expectedChannel = null;
+      var bridge;
+      var connectButton = document.getElementById('connectTikTok');
+      var status = document.getElementById('tiktokStatus');
+
+      function text(value) { return value == null ? '' : String(value); }
+      function formatNumber(value) { return Number(value || 0).toLocaleString(); }
+      function formatDate(seconds) {
+        return seconds ? new Date(Number(seconds) * 1000).toLocaleDateString() : '';
+      }
+      function safeTikTokUrl(value) {
+        try {
+          var url = new URL(text(value));
+          return url.protocol === 'https:' &&
+            (url.hostname === 'tiktok.com' || url.hostname.endsWith('.tiktok.com')) ? url.href : '';
+        } catch (_) { return ''; }
+      }
+      function clearSessionFromUrl() {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      function createBridgeChannel() {
+        var bytes = new Uint8Array(32);
+        window.crypto.getRandomValues(bytes);
+        var binary = '';
+        bytes.forEach(function (byte) { binary += String.fromCharCode(byte); });
+        return window.btoa(binary)
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+      }
+      function cleanupBridge() {
+        window.removeEventListener('message', receiveBridgeMessage);
+        if (bridge) bridge.remove();
+        bridge = null;
+        expectedChannel = null;
+        expectedSession = null;
+        clearSessionFromUrl();
+      }
+      function showError(message) {
+        status.textContent = message;
+        cleanupBridge();
+      }
+      function renderVideo(video) {
+        var item = document.createElement('article');
+        item.className = 'video';
+        if (video.coverImageUrl) {
+          var image = document.createElement('img');
+          image.src = video.coverImageUrl;
+          image.alt = '';
+          item.appendChild(image);
+        } else {
+          item.appendChild(document.createElement('div'));
+        }
+        var body = document.createElement('div');
+        var title = document.createElement('h3');
+        title.textContent = text(video.title) || 'Untitled TikTok video';
+        body.appendChild(title);
+        var date = document.createElement('p');
+        date.textContent = formatDate(video.createTime);
+        body.appendChild(date);
+        var metrics = document.createElement('p');
+        metrics.textContent = 'Views ' + formatNumber(video.viewCount) + ' · Likes ' + formatNumber(video.likeCount) + ' · Comments ' + formatNumber(video.commentCount) + ' · Shares ' + formatNumber(video.shareCount);
+        body.appendChild(metrics);
+        var videoUrl = safeTikTokUrl(video.embedLink);
+        if (videoUrl) {
+          var link = document.createElement('a');
+          link.href = videoUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = 'View video';
+          body.appendChild(link);
+        }
+        item.appendChild(body);
+        return item;
+      }
+      function render(data) {
+        var user = data.user || {};
+        document.getElementById('tiktokDisconnected').classList.add('hidden');
+        document.getElementById('tiktokConnected').classList.remove('hidden');
+        document.getElementById('tiktokAvatar').src = text(user.avatarUrl);
+        document.getElementById('tiktokDisplayName').textContent = text(user.displayName) || 'TikTok account';
+        document.getElementById('tiktokUsername').textContent = user.username ? '@' + text(user.username) : '';
+        document.getElementById('tiktokOpenId').textContent = user.openId ? 'Account ID: ' + text(user.openId) : '';
+        document.getElementById('tiktokBio').textContent = text(user.bioDescription);
+        var profile = document.getElementById('tiktokProfileUrl');
+        var profileUrl = safeTikTokUrl(user.profileUrl);
+        profile.href = profileUrl || '#';
+        profile.hidden = !profileUrl;
+        document.getElementById('tiktokFollowers').textContent = formatNumber(user.followerCount);
+        document.getElementById('tiktokFollowing').textContent = formatNumber(user.followingCount);
+        document.getElementById('tiktokLikes').textContent = formatNumber(user.likesCount);
+        document.getElementById('tiktokVideosCount').textContent = formatNumber(user.videoCount);
+        var list = document.getElementById('tiktokVideoList');
+        list.replaceChildren();
+        (data.videos || []).forEach(function (video) { list.appendChild(renderVideo(video)); });
+        if (!(data.videos || []).length) list.textContent = 'No public TikTok videos are available.';
+        status.textContent = 'TikTok account connected.';
+        cleanupBridge();
+      }
+      connectButton.addEventListener('click', function () {
+        connectButton.disabled = true;
+        status.textContent = 'Opening TikTok authorization…';
+        window.location.assign(backendUrl + '?tiktok_action=connect');
+      });
+      function receiveBridgeMessage(event) {
+        // Apps Script HtmlService runs inside a per-deployment Google container origin.
+        // The observed format is n-*-script.googleusercontent.com.
+        var allowedOrigin = /^https:\/\/n-[a-z0-9-]+-script\.googleusercontent\.com$/i;
+        var message = event.data;
+        if (!allowedOrigin.test(event.origin) || !message || typeof message !== 'object') return;
+        if (message.session !== expectedSession || message.channel !== expectedChannel) return;
+        if (message.type !== 'robobella:tiktok-data' && message.type !== 'robobella:tiktok-error') return;
+        if (message.type === 'robobella:tiktok-data') render(message.data || {});
+        if (message.type === 'robobella:tiktok-error') showError('TikTok connection expired. Please connect again.');
+      }
+      if (expectedSession) {
+        status.textContent = 'Loading connected TikTok account…';
+        expectedChannel = createBridgeChannel();
+        bridge = document.createElement('iframe');
+        bridge.hidden = true;
+        bridge.title = 'TikTok connection data';
+        bridge.src = backendUrl + '?tiktok_bridge=1&session=' + encodeURIComponent(expectedSession) + '&tiktok_channel=' + encodeURIComponent(expectedChannel);
+        window.addEventListener('message', receiveBridgeMessage);
+        document.body.appendChild(bridge);
+      }
+    }());
+  </script>
 </body>
 </html>
