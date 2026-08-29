@@ -125,7 +125,9 @@
 
     .connection-status { color: #aeb7c8; }
     .account-head { display: flex; gap: 16px; align-items: center; }
-    .account-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: #19284d; }
+    .avatar-wrap { width: 64px; height: 64px; flex: 0 0 64px; border-radius: 50%; overflow: hidden; background: #19284d; }
+    .account-avatar { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-fallback { display: grid; width: 100%; height: 100%; place-items: center; background: #19284d; color: #dbe7ff; font-size: 22px; font-weight: 750; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
     .stat { padding: 14px; border-radius: 12px; background: #101827; }
     .stat b { display: block; margin-top: 4px; font-size: 21px; }
@@ -215,7 +217,10 @@ engagement across supported platforms.
       <p class="connection-status" id="tiktokStatus" aria-live="polite"></p>
       <div class="hidden" id="tiktokConnected">
         <div class="account-head">
-          <img class="account-avatar" id="tiktokAvatar" alt="TikTok account avatar">
+          <div class="avatar-wrap">
+            <img class="account-avatar hidden" id="tiktokAvatar" alt="TikTok account avatar">
+            <span class="avatar-fallback" id="tiktokAvatarFallback" aria-hidden="true">T</span>
+          </div>
           <div>
             <h3 id="tiktokDisplayName"></h3>
             <p id="tiktokUsername"></p>
@@ -280,6 +285,29 @@ engagement across supported platforms.
             (url.hostname === 'tiktok.com' || url.hostname.endsWith('.tiktok.com')) ? url.href : '';
         } catch (_) { return ''; }
       }
+      function avatarInitial(user) {
+        var label = text(user.displayName || user.username || 'TikTok').trim();
+        return Array.from(label)[0] || 'T';
+      }
+      function renderAvatar(user) {
+        var avatar = document.getElementById('tiktokAvatar');
+        var fallback = document.getElementById('tiktokAvatarFallback');
+        fallback.textContent = avatarInitial(user);
+        fallback.hidden = false;
+        avatar.classList.add('hidden');
+        avatar.removeAttribute('src');
+        if (!user.avatarUrl) return;
+        avatar.onload = function () {
+          avatar.classList.remove('hidden');
+          fallback.hidden = true;
+        };
+        avatar.onerror = function () {
+          avatar.removeAttribute('src');
+          avatar.classList.add('hidden');
+          fallback.hidden = false;
+        };
+        avatar.src = text(user.avatarUrl);
+      }
       function clearSessionFromUrl() {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -342,7 +370,7 @@ engagement across supported platforms.
         var user = data.user || {};
         document.getElementById('tiktokDisconnected').classList.add('hidden');
         document.getElementById('tiktokConnected').classList.remove('hidden');
-        document.getElementById('tiktokAvatar').src = text(user.avatarUrl);
+        renderAvatar(user);
         document.getElementById('tiktokDisplayName').textContent = text(user.displayName) || 'TikTok account';
         document.getElementById('tiktokUsername').textContent = user.username ? '@' + text(user.username) : '';
         document.getElementById('tiktokOpenId').textContent = user.openId ? 'Account ID: ' + text(user.openId) : '';
