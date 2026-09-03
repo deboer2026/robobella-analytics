@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description"
-        content="RoboBella Analytics is an internal social media analytics tool for RoboBella accounts.">
+        content="RoboBella Analytics is a social media performance dashboard for authorized creator accounts across YouTube, Instagram and TikTok.">
   <title>RoboBella Analytics</title>
   <link rel="icon" type="image/png" href="app-icon.png">
   <link rel="apple-touch-icon" href="app-icon.png">
@@ -30,19 +30,22 @@
         #080b12;
     }
 
-    main {
-      width: min(920px, calc(100% - 40px));
-      margin: 0 auto;
-      padding: 80px 0;
-    }
+    a { color: #a9c5ff; }
 
-    .badge {
-      display: inline-block;
-      padding: 7px 12px;
-      border: 1px solid #47618f;
-      border-radius: 999px;
-      color: #b7ccff;
-      font-size: 14px;
+    /* Top navigation */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px max(20px, calc((100% - 1080px) / 2));
+      background: rgba(8, 11, 18, 0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #1b2438;
+      flex-wrap: wrap;
     }
 
     .brand {
@@ -55,34 +58,110 @@
     }
 
     .app-icon {
-      width: 52px;
-      height: 52px;
+      width: 40px;
+      height: 40px;
       object-fit: cover;
       object-position: center 30%;
       border: 1px solid #47618f;
-      border-radius: 14px;
+      border-radius: 11px;
       background: #101827;
     }
 
+    .brand-text { display: flex; flex-direction: column; line-height: 1.25; }
+    .brand-text .sub { font-weight: 500; color: #9aa8c4; font-size: 12px; }
+
+    .navlinks {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .navlinks a {
+      color: #c7cedc;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    .navlinks a:hover { background: #131c2e; color: #f5f7fb; }
+
+    main {
+      width: min(1080px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 44px 0 90px;
+    }
+
+    section { scroll-margin-top: 84px; }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 11px;
+      border: 1px solid #47618f;
+      border-radius: 999px;
+      color: #b7ccff;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .badge.sample { border-color: #6f5a24; color: #f0d18a; background: rgba(240, 209, 138, 0.08); }
+    .badge.live { border-color: #2f6f52; color: #8ee9bd; background: rgba(142, 233, 189, 0.08); }
+
     h1 {
-      margin: 22px 0 16px;
-      font-size: clamp(42px, 8vw, 76px);
-      line-height: 1;
-      letter-spacing: -0.05em;
+      margin: 18px 0 10px;
+      font-size: clamp(34px, 6vw, 52px);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    h2.section-title {
+      margin: 0 0 4px;
+      font-size: 24px;
+      letter-spacing: -0.01em;
+    }
+
+    .section-sub {
+      margin: 0 0 20px;
+      color: #9aa8c4;
+      font-size: 14px;
     }
 
     .lead {
       max-width: 700px;
       color: #c7cedc;
-      font-size: 19px;
+      font-size: 17px;
       line-height: 1.7;
     }
+
+    .dashboard-section {
+      margin-top: 56px;
+    }
+
+    /* Overview stat tiles */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .overview-tile {
+      padding: 18px;
+      border: 1px solid #27334b;
+      border-radius: 16px;
+      background: rgba(15, 20, 32, 0.82);
+    }
+
+    .overview-tile span { display: block; color: #9aa8c4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .overview-tile b { display: block; margin-top: 8px; font-size: 19px; line-height: 1.3; }
 
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
-      margin-top: 48px;
+      margin-top: 22px;
     }
 
     .card {
@@ -92,20 +171,72 @@
       background: rgba(15, 20, 32, 0.82);
     }
 
-    .card h2 {
-      margin: 0 0 10px;
-      font-size: 19px;
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card h2, .card h3 {
+      margin: 0;
+      font-size: 18px;
     }
 
     .card p {
-      margin: 0;
+      margin: 10px 0 0;
       color: #aeb7c8;
       line-height: 1.6;
+      font-size: 14px;
     }
 
-    .tiktok-card {
-      margin-top: 24px;
+    /* Sample sparkline / bar mock */
+    .sample-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 64px;
+      margin-top: 16px;
+      padding: 0 2px;
     }
+
+    .sample-chart i {
+      flex: 1;
+      display: block;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, #6f8fe6, #33477a);
+    }
+
+    .sample-chart-caption {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #7f8bab;
+    }
+
+    /* Reports list */
+    .reports-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .report-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border: 1px solid #27334b;
+      border-radius: 14px;
+      background: rgba(15, 20, 32, 0.82);
+      flex-wrap: wrap;
+    }
+
+    .report-row .report-name { font-weight: 700; font-size: 15px; }
+    .report-row .report-meta { color: #9aa8c4; font-size: 13px; margin-top: 3px; }
+
+    .tiktok-card { margin-top: 16px; }
 
     .connect-button {
       display: inline-block;
@@ -150,113 +281,245 @@
       font-size: 14px;
     }
 
-    a {
-      color: #a9c5ff;
+    @media (max-width: 900px) {
+      .overview-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 700px) {
-      main {
-        padding: 52px 0;
-      }
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
+      main { padding: 32px 0 70px; }
+      .grid { grid-template-columns: 1fr; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .topnav { padding: 14px 20px; }
     }
   </style>
 </head>
 
 <body>
-  <main>
+  <nav class="topnav">
     <div class="brand">
       <img class="app-icon" src="app-icon.png" alt="RoboBella Analytics app icon">
-      <span class="badge">RoboBella Project</span>
+      <div class="brand-text">
+        <span>RoboBella Analytics</span>
+        <span class="sub">Social Media Performance Dashboard</span>
+      </div>
     </div>
+    <div class="navlinks">
+      <a href="#overview">Overview</a>
+      <a href="#platforms">Platforms</a>
+      <a href="#reports">Reports</a>
+      <a href="#connections">Connections</a>
+      <a href="#about">About</a>
+    </div>
+  </nav>
 
-    <h1>RoboBella Analytics</h1>
+  <main>
+    <section id="overview">
+      <span class="badge">Dashboard</span>
+      <h1>Social Media Performance Dashboard</h1>
+      <p class="lead">
+        RoboBella Analytics is a reporting application that helps authorized
+        creators review account growth, content performance and audience
+        engagement across YouTube, Instagram and TikTok in one dashboard.
+      </p>
 
-    <p class="lead">
-A social media analytics and reporting service that helps authorized
-creators review account growth, content performance and audience
-engagement across supported platforms.
-    </p>
-
-    <section class="grid" aria-label="Platform features">
-      <article class="card">
-        <h2>YouTube</h2>
-        <p>
-          Tracks channel growth, video performance, watch time,
-          retention and series-level results.
-        </p>
-      </article>
-
-      <article class="card">
-        <h2>Instagram</h2>
-        <p>
-          Tracks profile growth, reach, views, saves, shares and
-          post-level insights for authorized RoboBella accounts.
-        </p>
-      </article>
-
-      <article class="card">
-        <h2>TikTok</h2>
-        <p>
-          Connect an authorized TikTok account to review profile details,
-          account statistics and public-video performance.
-        </p>
-      </article>
-    </section>
-    <section class="card tiktok-card" aria-labelledby="tiktok-heading">
-      <h2 id="tiktok-heading">TikTok Account</h2>
-      <div id="tiktokDisconnected">
-        <p>
-          TikTokアカウントを接続すると、プロフィール、アカウント統計、公開動画のパフォーマンスを確認できます。
-        </p>
-        <button class="connect-button" id="connectTikTok" type="button">TikTokと接続</button>
+      <div class="overview-grid" aria-label="Dashboard overview">
+        <div class="overview-tile">
+          <span>Connected Platforms</span>
+          <b id="ovConnectedPlatforms">TikTok available</b>
+        </div>
+        <div class="overview-tile">
+          <span>Total Accounts</span>
+          <b id="ovTotalAccounts">0 connected</b>
+        </div>
+        <div class="overview-tile">
+          <span>Reporting Status</span>
+          <b>Ready</b>
+        </div>
+        <div class="overview-tile">
+          <span>Latest Report</span>
+          <b>Available after connecting an account</b>
+        </div>
+        <div class="overview-tile">
+          <span>Platform Coverage</span>
+          <b>YouTube · Instagram · TikTok</b>
+        </div>
       </div>
-      <p class="connection-status" id="tiktokStatus" aria-live="polite"></p>
-      <div class="hidden" id="tiktokConnected">
-        <div class="account-head">
-          <div class="avatar-wrap">
-            <img class="account-avatar hidden" id="tiktokAvatar" alt="TikTok account avatar">
-            <span class="avatar-fallback" id="tiktokAvatarFallback" aria-hidden="true">T</span>
+    </section>
+
+    <section id="platforms" class="dashboard-section">
+      <h2 class="section-title">Platform Analytics</h2>
+      <p class="section-sub">Account growth, content performance and engagement, by platform.</p>
+
+      <section class="grid" aria-label="Platform analytics">
+        <article class="card">
+          <div class="card-head">
+            <h2>YouTube</h2>
+            <span class="badge sample">Sample Preview</span>
           </div>
+          <p>
+            Channel growth, video performance, watch time, retention and
+            series-level results, available through RoboBella reporting
+            workflows.
+          </p>
+          <div class="sample-chart" aria-hidden="true">
+            <i style="height:38%"></i><i style="height:52%"></i><i style="height:46%"></i>
+            <i style="height:64%"></i><i style="height:58%"></i><i style="height:78%"></i>
+            <i style="height:70%"></i>
+          </div>
+          <p class="sample-chart-caption">Sample audience growth trend</p>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>Instagram</h2>
+            <span class="badge sample">Sample Preview</span>
+          </div>
+          <p>
+            Profile growth, reach, views, saves, shares and post-level
+            insights, available through RoboBella reporting workflows.
+          </p>
+          <div class="sample-chart" aria-hidden="true">
+            <i style="height:30%"></i><i style="height:44%"></i><i style="height:40%"></i>
+            <i style="height:60%"></i><i style="height:50%"></i><i style="height:66%"></i>
+            <i style="height:82%"></i>
+          </div>
+          <p class="sample-chart-caption">Sample engagement trend</p>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>TikTok</h2>
+            <span class="badge">Connect account</span>
+          </div>
+          <p>
+            Connect an authorized TikTok account to review profile details,
+            account statistics and public-video performance.
+          </p>
+          <p class="sample-chart-caption" style="margin-top:16px">
+            See <a href="#connections">Platform Connections</a> to connect
+            and view live TikTok data.
+          </p>
+        </article>
+      </section>
+    </section>
+
+    <section id="reports" class="dashboard-section">
+      <h2 class="section-title">Recent Reports</h2>
+      <p class="section-sub">Reporting templates generated from connected account data.</p>
+
+      <div class="reports-list">
+        <div class="report-row">
           <div>
-            <h3 id="tiktokDisplayName"></h3>
-            <p id="tiktokUsername"></p>
-            <p id="tiktokOpenId"></p>
-            <a id="tiktokProfileUrl" target="_blank" rel="noopener noreferrer">View TikTok profile</a>
+            <div class="report-name">Account Growth</div>
+            <div class="report-meta">Followers, subscribers and audience growth over time</div>
           </div>
+          <span class="badge sample">Example Report</span>
         </div>
-        <p id="tiktokBio"></p>
-        <div class="stats" aria-label="TikTok account statistics">
-          <div class="stat"><span>Followers</span><b id="tiktokFollowers">—</b></div>
-          <div class="stat"><span>Following</span><b id="tiktokFollowing">—</b></div>
-          <div class="stat"><span>Likes</span><b id="tiktokLikes">—</b></div>
-          <div class="stat"><span>Videos</span><b id="tiktokVideosCount">—</b></div>
+        <div class="report-row">
+          <div>
+            <div class="report-name">Content Performance</div>
+            <div class="report-meta">Views, watch time and top-performing posts</div>
+          </div>
+          <span class="badge sample">Example Report</span>
         </div>
-        <h3 style="margin:28px 0 0">Recent TikTok Videos</h3>
-        <div class="video-list" id="tiktokVideoList"></div>
+        <div class="report-row">
+          <div>
+            <div class="report-name">Audience Engagement</div>
+            <div class="report-meta">Likes, comments, shares and engagement rate</div>
+          </div>
+          <span class="badge sample">Example Report</span>
+        </div>
+        <div class="report-row">
+          <div>
+            <div class="report-name">Recent Content Performance</div>
+            <div class="report-meta">Latest published content across connected platforms</div>
+          </div>
+          <span class="badge sample">Example Report</span>
+        </div>
       </div>
     </section>
-<section class="card" style="margin-top: 24px;">
-  <h2>How it works</h2>
-  <p>
-    Users connect only social media accounts they own or are authorized
-    to manage. RoboBella Analytics retrieves permitted profile,
-    content and performance data, then organizes it into reporting
-    dashboards for performance review.
-  </p>
-</section>
 
-<section class="card" style="margin-top: 16px;">
-  <h2>Data access</h2>
-  <p>
-    Access is limited to data authorized by the account owner.
-    RoboBella Analytics does not sell personal information or publish
-    connected account data publicly.
-  </p>
-</section>
+    <section id="connections" class="dashboard-section">
+      <h2 class="section-title">Platform Connections</h2>
+      <p class="section-sub">Connect accounts you own or are authorized to manage.</p>
+
+      <section class="grid" aria-label="Platform connections">
+        <article class="card">
+          <div class="card-head"><h2>YouTube</h2></div>
+          <p>
+            Available through RoboBella reporting workflows for authorized
+            channel owners.
+          </p>
+        </article>
+
+        <article class="card">
+          <div class="card-head"><h2>Instagram</h2></div>
+          <p>
+            Available through RoboBella reporting workflows for authorized
+            account owners.
+          </p>
+        </article>
+
+        <article class="card tiktok-card" aria-labelledby="tiktok-heading">
+          <div class="card-head"><h2 id="tiktok-heading">TikTok</h2></div>
+          <div id="tiktokDisconnected">
+            <p>
+              TikTokアカウントを接続すると、プロフィール、アカウント統計、公開動画のパフォーマンスを確認できます。
+            </p>
+            <button class="connect-button" id="connectTikTok" type="button">TikTokと接続</button>
+          </div>
+          <p class="connection-status" id="tiktokStatus" aria-live="polite"></p>
+          <div class="hidden" id="tiktokConnected">
+            <div class="account-head">
+              <div class="avatar-wrap">
+                <img class="account-avatar hidden" id="tiktokAvatar" alt="TikTok account avatar">
+                <span class="avatar-fallback" id="tiktokAvatarFallback" aria-hidden="true">T</span>
+              </div>
+              <div>
+                <h3 id="tiktokDisplayName"></h3>
+                <p id="tiktokUsername"></p>
+                <p id="tiktokOpenId"></p>
+                <a id="tiktokProfileUrl" target="_blank" rel="noopener noreferrer">View TikTok profile</a>
+              </div>
+            </div>
+            <p id="tiktokBio"></p>
+            <div class="stats" aria-label="TikTok account statistics">
+              <div class="stat"><span>Followers</span><b id="tiktokFollowers">—</b></div>
+              <div class="stat"><span>Following</span><b id="tiktokFollowing">—</b></div>
+              <div class="stat"><span>Likes</span><b id="tiktokLikes">—</b></div>
+              <div class="stat"><span>Videos</span><b id="tiktokVideosCount">—</b></div>
+            </div>
+            <h3 style="margin:28px 0 0">Recent TikTok Videos</h3>
+            <div class="video-list" id="tiktokVideoList"></div>
+          </div>
+        </article>
+      </section>
+    </section>
+
+    <section id="about" class="dashboard-section">
+      <h2 class="section-title">How RoboBella Analytics Works</h2>
+      <div class="grid" aria-label="About RoboBella Analytics" style="grid-template-columns: repeat(2, 1fr);">
+        <article class="card">
+          <h2>How it works</h2>
+          <p>
+            Users connect only social media accounts they own or are
+            authorized to manage. RoboBella Analytics retrieves permitted
+            profile, content and performance data, then organizes it into
+            reporting dashboards for performance review.
+          </p>
+        </article>
+
+        <article class="card">
+          <h2>Data &amp; Privacy</h2>
+          <p>
+            Access is limited to data authorized by the account owner.
+            RoboBella Analytics does not sell personal information or
+            publish connected account data publicly.
+          </p>
+        </article>
+      </div>
+    </section>
+
     <footer>
       <span>© 2026 RoboBella</span>
       <a href="privacy.html">Privacy Policy</a>
@@ -366,6 +629,12 @@ engagement across supported platforms.
         item.appendChild(body);
         return item;
       }
+      function updateOverviewTiles(user) {
+        var connectedTile = document.getElementById('ovConnectedPlatforms');
+        var accountsTile = document.getElementById('ovTotalAccounts');
+        if (connectedTile) connectedTile.textContent = 'TikTok connected';
+        if (accountsTile) accountsTile.textContent = '1 connected';
+      }
       function render(data) {
         var user = data.user || {};
         document.getElementById('tiktokDisconnected').classList.add('hidden');
@@ -388,6 +657,7 @@ engagement across supported platforms.
         (data.videos || []).forEach(function (video) { list.appendChild(renderVideo(video)); });
         if (!(data.videos || []).length) list.textContent = 'No public TikTok videos are available.';
         status.textContent = 'TikTok account connected.';
+        updateOverviewTiles(user);
         cleanupBridge();
       }
       connectButton.addEventListener('click', function () {
