@@ -11,6 +11,8 @@ assert.match(source, /Upload to TikTok as draft/);
 assert.match(source, /This does not publish your video/);
 assert.match(source, /TikTok sends the draft to your\s+Inbox/);
 assert.match(source, /tiktok_upload_capability/);
+assert.match(source, /window\.location\.hash/);
+assert.match(source, /history\.replaceState/);
 assert.match(source, /tiktok_action=sandbox_connect/);
 assert.match(source, /tiktok_upload=1/);
 assert.match(source, /Supported formats: MP4, QuickTime and WebM/);
@@ -18,9 +20,20 @@ assert.match(source, /video\.upload/);
 assert.match(source, /tiktokDraftFrame/);
 
 assert.match(scriptMatch[1], /draftCapability/);
-assert.match(scriptMatch[1], /encodeURIComponent\(draftCapability\)/);
+assert.match(scriptMatch[1], /analyticsBackendUrl/);
+assert.match(scriptMatch[1], /draftReviewBackendUrl/);
+assert.match(scriptMatch[1], /draftReviewBackendUrl\s*\+\s*['"]\?tiktok_upload=1&channel=/);
+assert.match(scriptMatch[1], /postMessage/);
+assert.match(scriptMatch[1], /event\.source\s*!==\s*draftFrame\.contentWindow/);
+assert.match(scriptMatch[1], /draftCapabilitySent/);
 assert.match(scriptMatch[1], /draftConnectButton\.disabled\s*=\s*true/);
 assert.match(scriptMatch[1], /user\.username/);
+assert.equal(/draftFrame\.src\s*=\s*[^;]*draftCapability/.test(scriptMatch[1]), false);
+assert.equal(/\?tiktok_upload_capability=/.test(source), false);
+assert.notEqual(
+  scriptMatch[1].match(/var analyticsBackendUrl = ['"]([^'"]+)/)[1],
+  scriptMatch[1].match(/var draftReviewBackendUrl = ['"]([^'"]+)/)[1]
+);
 
 assert.equal(/robobellachan/i.test(source), false);
 assert.equal(/video\.publish|Direct Post/i.test(source), false);

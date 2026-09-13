@@ -571,10 +571,13 @@
   <script>
     (function () {
       'use strict';
-      var backendUrl = 'https://script.google.com/macros/s/AKfycbzrL9ixRCYC7-qd7Ypaq8i0QIFoDx2_yZzMtX-GjAXTzHkgWMntGcoyoYfPcrVefIY6fw/exec';
+      var analyticsBackendUrl = 'https://script.google.com/macros/s/AKfycbzrL9ixRCYC7-qd7Ypaq8i0QIFoDx2_yZzMtX-GjAXTzHkgWMntGcoyoYfPcrVefIY6fw/exec';
+      var draftReviewBackendUrl = 'https://script.google.com/macros/s/AKfycbw625b0P6FLVK7JvSoWqe5VnPV6s0zlJBMyaT9Kug4omLk9N9P5ND0bOywLITl9aEeDOg/exec';
       var query = new URLSearchParams(window.location.search);
       var expectedSession = query.get('tiktok_session');
-      var draftCapability = query.get('tiktok_upload_capability');
+      var draftCapability = '';
+      var draftChannel = '';
+      var draftCapabilitySent = false;
       var expectedChannel = null;
       var bridge;
       var connectButton = document.getElementById('connectTikTok');
@@ -631,6 +634,25 @@
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
           .replace(/=+$/, '');
+      }
+      function isOpaqueDraftValue(value) {
+        return /^[0-9a-f]{128}$/i.test(text(value));
+      }
+      function readDraftCapabilityFromFragment() {
+        var hash = window.location.hash || '';
+        if (hash.length < 2) return;
+        var fragment = new URLSearchParams(hash.slice(1));
+        if (!fragment.has('tiktok_upload_capability')) return;
+        var candidate = fragment.get('tiktok_upload_capability');
+        if (isOpaqueDraftValue(candidate)) draftCapability = candidate;
+        fragment.delete('tiktok_upload_capability');
+        var remaining = fragment.toString();
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + window.location.search +
+            (remaining ? '#' + remaining : '')
+        );
       }
       function cleanupBridge() {
         window.removeEventListener('message', receiveBridgeMessage);
@@ -710,22 +732,24 @@
       connectButton.addEventListener('click', function () {
         connectButton.disabled = true;
         status.textContent = 'Opening TikTok authorization…';
-        window.location.assign(backendUrl + '?tiktok_action=connect');
+        window.location.assign(analyticsBackendUrl + '?tiktok_action=connect');
       });
       draftConnectButton.addEventListener('click', function () {
         draftConnectButton.disabled = true;
         document.getElementById('tiktokDraftConnectionStatus').textContent = 'Opening TikTok authorization…';
-        window.location.assign(backendUrl + '?tiktok_action=sandbox_connect');
+        window.location.assign(draftReviewBackendUrl + '?tiktok_action=sandbox_connect');
       });
       function loadDraftUpload() {
+        readDraftCapabilityFromFragment();
         if (!draftCapability) return;
         draftAuthRequired.classList.add('hidden');
         draftReady.classList.remove('hidden');
         draftFrame.classList.remove('hidden');
-        draftFrame.src = backendUrl + '?tiktok_upload=1&capability=' + encodeURIComponent(draftCapability);
-        var cleanUrl = new URL(window.location.href);
-        cleanUrl.searchParams.delete('tiktok_upload_capability');
-        window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        draftChannel = createBridgeChannel();
+        draftCapabilitySent = false;
+        window.addEventListener('message', receiveDraftMessage);
+        draftFrame.src = draftReviewBackendUrl +
+          '?tiktok_upload=1&channel=' + encodeURIComponent(draftChannel);
       }
       function receiveBridgeMessage(event) {
         // Apps Script HtmlService runs inside a per-deployment Google container origin.
@@ -738,13 +762,29 @@
         if (message.type === 'robobella:tiktok-data') render(message.data || {});
         if (message.type === 'robobella:tiktok-error') showError('TikTok connection expired. Please connect again.');
       }
+      function receiveDraftMessage(event) {
+        var allowedRuntime = /^https:\/\/(?:n-[a-z0-9-]+-script\.googleusercontent\.com|script\.google\.com)$/i;
+        var message = event.data;
+        if (!allowedRuntime.test(event.origin) ||
+            !draftFrame || event.source !== draftFrame.contentWindow ||
+            !message || typeof message !== 'object' ||
+            message.type !== 'robobella:tiktok-draft-ready' ||
+            message.channel !== draftChannel ||
+            draftCapabilitySent || !draftCapability) return;
+        draftCapabilitySent = true;
+        draftFrame.contentWindow.postMessage({
+          type: 'robobella:tiktok-draft-capability',
+          channel: draftChannel,
+          capability: draftCapability
+        }, event.origin);
+      }
       if (expectedSession) {
         status.textContent = 'Loading connected TikTok account…';
         expectedChannel = createBridgeChannel();
         bridge = document.createElement('iframe');
         bridge.hidden = true;
         bridge.title = 'TikTok connection data';
-        bridge.src = backendUrl + '?tiktok_bridge=1&session=' + encodeURIComponent(expectedSession) + '&tiktok_channel=' + encodeURIComponent(expectedChannel);
+        bridge.src = analyticsBackendUrl + '?tiktok_bridge=1&session=' + encodeURIComponent(expectedSession) + '&tiktok_channel=' + encodeURIComponent(expectedChannel);
         window.addEventListener('message', receiveBridgeMessage);
         document.body.appendChild(bridge);
       }
