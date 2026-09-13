@@ -237,6 +237,9 @@
     .report-row .report-meta { color: #9aa8c4; font-size: 13px; margin-top: 3px; }
 
     .tiktok-card { margin-top: 16px; }
+    .draft-upload-card { margin-top: 16px; }
+    .draft-upload-frame { width: 100%; min-height: 570px; border: 1px solid #27334b; border-radius: 14px; background: #0b1220; }
+    .draft-upload-frame.hidden { display: none; }
 
     .connect-button {
       display: inline-block;
@@ -478,7 +481,6 @@
               <div>
                 <h3 id="tiktokDisplayName"></h3>
                 <p id="tiktokUsername"></p>
-                <p id="tiktokOpenId"></p>
                 <a id="tiktokProfileUrl" target="_blank" rel="noopener noreferrer">View TikTok profile</a>
               </div>
             </div>
@@ -491,6 +493,46 @@
             </div>
             <h3 style="margin:28px 0 0">Recent TikTok Videos</h3>
             <div class="video-list" id="tiktokVideoList"></div>
+          </div>
+        </article>
+        <article class="card draft-upload-card" aria-labelledby="tiktok-draft-heading">
+          <div class="card-head">
+            <h2 id="tiktok-draft-heading">TikTok Draft Upload</h2>
+            <span class="badge">Creator-controlled</span>
+          </div>
+          <p>
+            Send one locally selected video to the authorized TikTok creator's
+            Inbox as a draft for review and editing.
+          </p>
+          <p class="sample-chart-caption">
+            This does not publish your video. TikTok sends the draft to your
+            Inbox, where you can edit and publish it manually.
+          </p>
+          <p class="sample-chart-caption">
+            After authorization, choose <strong>Upload to TikTok as draft</strong>
+            in the secure upload panel below.
+          </p>
+          <p class="sample-chart-caption">
+            Supported formats: MP4, QuickTime and WebM. Maximum size: 40 MB.
+          </p>
+          <p class="sample-chart-caption">
+            Draft uploads require the TikTok <code>video.upload</code>
+            permission from the connected creator account.
+          </p>
+          <div id="tiktokDraftAuthRequired">
+            <p class="connection-status" id="tiktokDraftConnectionStatus" aria-live="polite">
+              Draft-upload authorization is required before a video can be selected.
+            </p>
+            <button class="connect-button" id="connectTikTokDraft" type="button">
+              Connect TikTok for draft upload
+            </button>
+          </div>
+          <div class="hidden" id="tiktokDraftReady">
+            <p class="connection-status" aria-live="polite">
+              Your authorized TikTok creator connection is ready for draft upload.
+            </p>
+            <iframe class="draft-upload-frame hidden" id="tiktokDraftFrame"
+              title="TikTok draft upload" allow="clipboard-write"></iframe>
           </div>
         </article>
       </section>
@@ -530,11 +572,17 @@
     (function () {
       'use strict';
       var backendUrl = 'https://script.google.com/macros/s/AKfycbzrL9ixRCYC7-qd7Ypaq8i0QIFoDx2_yZzMtX-GjAXTzHkgWMntGcoyoYfPcrVefIY6fw/exec';
-      var expectedSession = new URLSearchParams(window.location.search).get('tiktok_session');
+      var query = new URLSearchParams(window.location.search);
+      var expectedSession = query.get('tiktok_session');
+      var draftCapability = query.get('tiktok_upload_capability');
       var expectedChannel = null;
       var bridge;
       var connectButton = document.getElementById('connectTikTok');
       var status = document.getElementById('tiktokStatus');
+      var draftAuthRequired = document.getElementById('tiktokDraftAuthRequired');
+      var draftReady = document.getElementById('tiktokDraftReady');
+      var draftFrame = document.getElementById('tiktokDraftFrame');
+      var draftConnectButton = document.getElementById('connectTikTokDraft');
 
       function text(value) { return value == null ? '' : String(value); }
       function formatNumber(value) { return Number(value || 0).toLocaleString(); }
@@ -642,7 +690,6 @@
         renderAvatar(user);
         document.getElementById('tiktokDisplayName').textContent = text(user.displayName) || 'TikTok account';
         document.getElementById('tiktokUsername').textContent = user.username ? '@' + text(user.username) : '';
-        document.getElementById('tiktokOpenId').textContent = user.openId ? 'Account ID: ' + text(user.openId) : '';
         document.getElementById('tiktokBio').textContent = text(user.bioDescription);
         var profile = document.getElementById('tiktokProfileUrl');
         var profileUrl = safeTikTokUrl(user.profileUrl);
@@ -665,6 +712,21 @@
         status.textContent = 'Opening TikTok authorization…';
         window.location.assign(backendUrl + '?tiktok_action=connect');
       });
+      draftConnectButton.addEventListener('click', function () {
+        draftConnectButton.disabled = true;
+        document.getElementById('tiktokDraftConnectionStatus').textContent = 'Opening TikTok authorization…';
+        window.location.assign(backendUrl + '?tiktok_action=sandbox_connect');
+      });
+      function loadDraftUpload() {
+        if (!draftCapability) return;
+        draftAuthRequired.classList.add('hidden');
+        draftReady.classList.remove('hidden');
+        draftFrame.classList.remove('hidden');
+        draftFrame.src = backendUrl + '?tiktok_upload=1&capability=' + encodeURIComponent(draftCapability);
+        var cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('tiktok_upload_capability');
+        window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+      }
       function receiveBridgeMessage(event) {
         // Apps Script HtmlService runs inside a per-deployment Google container origin.
         // The observed format is n-*-script.googleusercontent.com.
@@ -686,6 +748,7 @@
         window.addEventListener('message', receiveBridgeMessage);
         document.body.appendChild(bridge);
       }
+      loadDraftUpload();
     }());
   </script>
 </body>
