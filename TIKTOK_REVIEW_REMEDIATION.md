@@ -1,75 +1,104 @@
-# TikTok Production Review remediation
+# TikTok Content Posting review remediation
 
-## Implemented E2E design (pending deployment)
+## Review status
 
-GitHub Pages is the user-facing interface and the existing Apps Script Web App
-is the OAuth/API backend. Selecting **TikTokと接続** opens the Apps Script
-endpoint, which creates an opaque, single-use session and state value. The
-client secret and TikTok access token are used only in Apps Script.
+The public-domain draft-upload surface and its Sandbox Apps Script backend
+are implemented in the review branches for this change. The flow remains
+`REVIEW_UI_BLOCKER` until the branches are merged, the reviewed Apps Script
+source is deployed to the existing Sandbox Web App deployment, and a real
+Sandbox E2E run on the public domain succeeds. No Production `video.upload`
+scope or Production deployment is changed by this implementation.
 
-After TikTok returns to the Apps Script redirect URI, Apps Script validates
-the state, exchanges the code, retrieves the authorized user's information
-and public videos, and returns the user to this GitHub Pages URL with only an
-opaque short-lived session identifier. GitHub Pages embeds a short-lived Apps
-Script bridge iframe. Each bridge load receives a fresh 256-bit channel nonce.
-The bridge consumes the session once and sends the profile and video data to
-the fixed `https://deboer2026.github.io` top-level window using `postMessage`.
-The page accepts a message only when its actual Apps Script runtime origin,
-session ID, channel nonce, and allowed message type all match.
+## Product flow
 
-Before a Sandbox demonstration, deploy the reviewed Apps Script source to the
-existing fixed Web App deployment, then ensure the TikTok Developer Portal
-redirect URI exactly matches that Web App `/exec` URL. Do not put any token,
-client secret, or session payload in the GitHub Pages repository.
+RoboBella Analytics is a creator-facing analytics and draft-delivery tool for
+TikTok creators who authorize their own accounts or accounts they are allowed
+to manage. The connected creator identity is obtained from TikTok and is not
+hard-coded. The public site provides:
 
-## Pre-implementation audit (2026-08-29)
+1. TikTok Login Kit connection for the authorized creator.
+2. A visible **TikTok Draft Upload** section.
+3. A local video picker, selected-file summary and explicit consent checkbox.
+4. A single **Upload to TikTok as draft** action.
+5. Sanitized preparation, upload and processing states.
+6. An Inbox instruction after TikTok reports that the draft is ready.
 
-Before this implementation, the registered Web URL was a static policy and
-product-description site. It had no TikTok connect control, OAuth callback,
-or connected-account UI, and its TikTok card said that the integration was
-being prepared.
+The draft is not published automatically. The creator opens the TikTok Inbox,
+reviews and edits the draft, and completes publication manually in TikTok.
+Direct Post is not part of this flow.
 
-The separate `robobella-analytics-appscript` repository contains Sandbox
-helpers, but they are not exposed through its dashboard UI:
+## Scope mapping
 
-| Requested scope | Existing server-side use | Visible product UI |
+| Scope | Product use | User-visible proof |
 | --- | --- | --- |
-| `user.info.basic` | `/v2/user/info/` requests `open_id` | No |
-| `user.info.profile` | `/v2/user/info/` requests avatar, display name, username, profile link and bio | No |
-| `user.info.stats` | `/v2/user/info/` requests follower, following, likes and video counts | No |
-| `video.list` | `/v2/video/list/` requests public-video metadata and metrics | No |
+| `user.info.basic` | Identify the authorized creator account | Connected creator name/username |
+| `user.info.profile` | Display profile details and profile link | Creator profile panel |
+| `user.info.stats` | Display follower and engagement statistics | TikTok statistics panel |
+| `video.list` | Display public-video metadata and metrics | Recent TikTok videos |
+| `video.upload` | Transfer an explicitly selected local video to the creator's Inbox as a draft | TikTok Draft Upload section and Inbox instruction |
 
-The helper functions are `createTikTokSandboxAuthorizationUrl`,
-`exchangeTikTokSandboxAuthorizationCode`, `testTikTokSandboxUserInfo`, and
-`testTikTokSandboxVideoList` in that separate Apps Script project. They
-store the authorization code and tokens in Script Properties and require
-manual execution; the callback only shows a confirmation page.
+The implementation does not request or use `video.publish` and does not
+offer a Direct Post control.
 
-## Remaining manual work before recording
+## Security boundary
 
-The GitHub Pages UI now provides a normal **TikTokと接続** control and renders
-the connected account identity, profile, statistics, and public videos. The
-Apps Script callback is deliberately server-side so that client secrets and
-tokens never enter GitHub Pages. Before recording, manually verify the
-Developer Portal redirect URI, Apps Script Script Properties, and Sandbox
-account data. No requested scope is unused by the implemented UI.
+GitHub Pages is the visible product UI. The existing Apps Script Web App is
+the OAuth and Content Posting backend. Apps Script receives the selected file
+through an HTML-Service form Blob and transfers it transiently; the browser
+does not receive an access token, authorization code, upload URL, upload
+token, raw provider response, open ID or publish ID.
 
-## Demo-video script after the blocker is resolved
+After Sandbox authorization, Apps Script creates a cryptographically random,
+short-lived capability in server-side CacheService. It is bound to the
+authorized creator and `video.upload`, can initialize only one upload, and is
+not a reusable credential. A separate short-lived opaque job ID is used for
+status polling. Terminal jobs purge the cached token and publish context.
 
-Record a single continuous Sandbox session on
-`https://deboer2026.github.io/robobella-analytics/` (or first update the
-Developer Portal URL to the actual deployed domain).
+The initial web-review file limit is 40,000,000 bytes. Supported types are
+`video/mp4`, `video/quicktime` and `video/webm`. Invalid, empty or oversized
+files are rejected before TikTok network activity. The one-chunk upload uses
+`FILE_UPLOAD`; redirects are disabled and the upload host is checked against
+the documented strict TikTok allowlist.
 
-| Time | User interaction and proof |
+## Demo storyboard
+
+Record one continuous Sandbox session at
+`https://deboer2026.github.io/robobella-analytics/` after deployment and
+manual redirect-URI verification:
+
+| Step | Proof to show |
 | --- | --- |
-| 00:00 | Open the registered domain; show the RoboBella Analytics name and app icon. |
-| 00:05 | Select **Connect TikTok**. |
-| 00:10 | Show TikTok Login Kit's Sandbox authorization screen and grant the requested access. |
-| 00:20 | Show the return to RoboBella Analytics on the same registered domain. |
-| 00:25 | Show connected account ID/basic identity (`user.info.basic`) and display name, username, avatar, bio or profile link (`user.info.profile`). |
-| 00:38 | Show follower, following, likes, and video counts (`user.info.stats`). |
-| 00:50 | Open the public-video list and show its titles/covers and performance fields (`video.list`). |
-| 01:05 | Open Privacy Policy and Terms of Service; show the same top-of-page app icon and the browser-tab favicon. |
+| 1 | Open the public RoboBella Analytics site. |
+| 2 | Open the TikTok connection area and choose **Connect TikTok for draft upload**. |
+| 3 | Complete Login Kit authorization without showing codes, tokens or secrets. |
+| 4 | Return to the site and show the connected creator identity. |
+| 5 | Select one supported local video and show its filename and size. |
+| 6 | Check the explicit consent and choose **Upload to TikTok as draft**. |
+| 7 | Show only `PREPARING`, `UPLOADING`, `PROCESSING` and the final sanitized state. |
+| 8 | Open the authorized creator's TikTok Inbox and open the received draft. |
+| 9 | Show the editing screen, but do not press the public publish control. |
+| 10 | Show the visible Privacy Policy and Terms of Service links. |
 
-Do not show source code, Script Properties, credentials, tokens, or manual
-server-side function execution in the video.
+Suggested narration: “RoboBella Analytics helps authorized TikTok creators
+review performance and send a selected video to TikTok as a draft. The draft
+is not published automatically. I review and publish it manually in TikTok.”
+
+## Policy disclosure
+
+The public Privacy Policy and Terms of Service disclose that the creator
+selects the media explicitly, the media is processed transiently for transfer,
+credentials remain server-side, temporary upload/session data is short-lived,
+and final publication happens manually in TikTok. The public pages retain
+visible links to both policies.
+
+## Post-approval gate
+
+After TikTok approves `video.upload`, the follow-up release must separately
+verify the returned Production scope, exact authorized account binding and
+one reviewed Production candidate. The release may perform at most one init
+and one PUT, then status-only polling until `SEND_TO_USER_INBOX`, followed by
+mobile Inbox confirmation. Production hard stop remains enabled until that
+gate is explicitly reviewed. Direct Post remains out of scope.
+
+Do not record source code, Script Properties, credentials, OAuth values,
+capability IDs or raw provider responses in a review video.
