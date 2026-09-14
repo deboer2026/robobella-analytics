@@ -531,6 +531,7 @@
             <p class="connection-status" aria-live="polite">
               Your authorized TikTok creator connection is ready for draft upload.
             </p>
+            <p class="connection-status hidden" id="tiktokDraftHandshakeError" aria-live="polite"></p>
             <iframe class="draft-upload-frame hidden" id="tiktokDraftFrame"
               title="TikTok draft upload" allow="clipboard-write"></iframe>
           </div>
@@ -586,6 +587,9 @@
       var draftReady = document.getElementById('tiktokDraftReady');
       var draftFrame = document.getElementById('tiktokDraftFrame');
       var draftConnectButton = document.getElementById('connectTikTokDraft');
+      var draftRuntimeWindow = null;
+      var draftHandshakeTimer = null;
+      var draftHandshakeTimedOut = false;
 
       function text(value) { return value == null ? '' : String(value); }
       function formatNumber(value) { return Number(value || 0).toLocaleString(); }
@@ -746,10 +750,19 @@
         draftReady.classList.remove('hidden');
         draftFrame.classList.remove('hidden');
         draftChannel = createBridgeChannel();
+        draftRuntimeWindow = null;
         draftCapabilitySent = false;
+        draftHandshakeTimedOut = false;
+        draftHandshakeTimer = null;
+        var handshakeError = document.getElementById('tiktokDraftHandshakeError');
+        if (handshakeError) {
+          handshakeError.textContent = '';
+          handshakeError.classList.add('hidden');
+        }
         window.addEventListener('message', receiveDraftMessage);
         draftFrame.src = draftReviewBackendUrl +
           '?tiktok_upload=1&channel=' + encodeURIComponent(draftChannel);
+        draftHandshakeTimer = window.setTimeout(failDraftHandshake, 9000);
       }
       function receiveBridgeMessage(event) {
         // Apps Script HtmlService runs inside a per-deployment Google container origin.
@@ -766,17 +779,43 @@
         var allowedRuntime = /^https:\/\/(?:n-[a-z0-9-]+-script\.googleusercontent\.com|script\.google\.com)$/i;
         var message = event.data;
         if (!allowedRuntime.test(event.origin) ||
-            !draftFrame || event.source !== draftFrame.contentWindow ||
+            !draftFrame || !event.source || typeof event.source.postMessage !== 'function' ||
             !message || typeof message !== 'object' ||
             message.type !== 'robobella:tiktok-draft-ready' ||
             message.channel !== draftChannel ||
-            draftCapabilitySent || !draftCapability) return;
+            draftCapabilitySent || draftHandshakeTimedOut || !draftCapability) return;
+        // HtmlService READY may originate from the nested googleusercontent runtime,
+        // not the script.google.com Window exposed by draftFrame.contentWindow.
+        // Bind the first valid source and use that WindowProxy for the reply.
+        if (draftRuntimeWindow === null) draftRuntimeWindow = event.source;
+        if (draftRuntimeWindow !== event.source) return;
+        try {
+          draftRuntimeWindow.postMessage({
+            type: 'robobella:tiktok-draft-capability',
+            channel: draftChannel,
+            capability: draftCapability
+          }, event.origin);
+        } catch (_) {
+          return;
+        }
         draftCapabilitySent = true;
-        draftFrame.contentWindow.postMessage({
-          type: 'robobella:tiktok-draft-capability',
-          channel: draftChannel,
-          capability: draftCapability
-        }, event.origin);
+        clearDraftHandshakeTimer();
+        window.removeEventListener('message', receiveDraftMessage);
+      }
+      function clearDraftHandshakeTimer() {
+        if (draftHandshakeTimer === null) return;
+        window.clearTimeout(draftHandshakeTimer);
+        draftHandshakeTimer = null;
+      }
+      function failDraftHandshake() {
+        draftHandshakeTimer = null;
+        if (draftCapabilitySent || draftHandshakeTimedOut) return;
+        draftHandshakeTimedOut = true;
+        window.removeEventListener('message', receiveDraftMessage);
+        var handshakeError = document.getElementById('tiktokDraftHandshakeError');
+        if (!handshakeError) return;
+        handshakeError.textContent = 'Secure draft-upload panel could not connect. Please reconnect TikTok.';
+        handshakeError.classList.remove('hidden');
       }
       if (expectedSession) {
         status.textContent = 'Loading connected TikTok account…';
