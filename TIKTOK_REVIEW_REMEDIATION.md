@@ -27,6 +27,30 @@ The draft is not published automatically. The creator opens the TikTok Inbox,
 reviews and edits the draft, and completes publication manually in TikTok.
 Direct Post is not part of this flow.
 
+## Cloudflare Pages review configuration
+
+The primary review surface is the free Cloudflare Pages hostname
+`https://robobellaanalytics.pages.dev/`. The existing GitHub Pages origin is
+retained as an allowlisted legacy origin for already deployed sessions; it is
+not the primary review URL.
+
+| Portal/configuration field | Value |
+| --- | --- |
+| App name | `RoboBella Analytics` |
+| Website URL | `https://robobellaanalytics.pages.dev/` |
+| Privacy Policy URL | `https://robobellaanalytics.pages.dev/privacy.html` |
+| Terms of Service URL | `https://robobellaanalytics.pages.dev/terms.html` |
+| Redirect domain | `robobellaanalytics.pages.dev` |
+| Redirect URI | `https://robobellaanalytics.pages.dev/tiktok/callback` |
+
+The Apps Script `TIKTOK_REDIRECT_URI` and
+`TIKTOK_SANDBOX_REDIRECT_URI` Script Properties must be changed manually to
+the exact callback URI above before an OAuth test. Source code does not write
+or expose Script Properties. The Cloudflare callback accepts only `GET`,
+validates the OAuth state shape, forwards only `code`, `state`, `error` and
+`error_description`, and routes sandbox states separately from production
+states. It never logs or persists callback values.
+
 ## Scope mapping
 
 | Scope | Product use | User-visible proof |
@@ -63,7 +87,7 @@ the documented strict TikTok allowlist.
 ## Demo storyboard
 
 Record one continuous Sandbox session at
-`https://deboer2026.github.io/robobella-analytics/` after deployment and
+`https://robobellaanalytics.pages.dev/` after deployment and
 manual redirect-URI verification:
 
 | Step | Proof to show |
