@@ -6,6 +6,7 @@
   <meta name="description"
         content="RoboBella Analytics is a social media performance dashboard for authorized creator accounts across YouTube, Instagram and TikTok.">
   <title>RoboBella Analytics</title>
+  <link rel="canonical" href="https://robobellaanalytics.pages.dev/">
   <link rel="icon" type="image/png" href="app-icon.png">
   <link rel="apple-touch-icon" href="app-icon.png">
 
@@ -736,12 +737,16 @@
       connectButton.addEventListener('click', function () {
         connectButton.disabled = true;
         status.textContent = 'Opening TikTok authorization…';
-        window.location.assign(analyticsBackendUrl + '?tiktok_action=connect');
+        window.location.assign(analyticsBackendUrl +
+          '?tiktok_action=connect&public_origin=' +
+          encodeURIComponent(window.location.origin));
       });
       draftConnectButton.addEventListener('click', function () {
         draftConnectButton.disabled = true;
         document.getElementById('tiktokDraftConnectionStatus').textContent = 'Opening TikTok authorization…';
-        window.location.assign(draftReviewBackendUrl + '?tiktok_action=sandbox_connect');
+        window.location.assign(draftReviewBackendUrl +
+          '?tiktok_action=sandbox_connect&public_origin=' +
+          encodeURIComponent(window.location.origin));
       });
       function loadDraftUpload() {
         readDraftCapabilityFromFragment();
@@ -761,7 +766,8 @@
         }
         window.addEventListener('message', receiveDraftMessage);
         draftFrame.src = draftReviewBackendUrl +
-          '?tiktok_upload=1&channel=' + encodeURIComponent(draftChannel);
+          '?tiktok_upload=1&channel=' + encodeURIComponent(draftChannel) +
+          '&public_origin=' + encodeURIComponent(window.location.origin);
         draftHandshakeTimer = window.setTimeout(failDraftHandshake, 9000);
       }
       function receiveBridgeMessage(event) {
@@ -823,7 +829,7 @@
         bridge = document.createElement('iframe');
         bridge.hidden = true;
         bridge.title = 'TikTok connection data';
-        bridge.src = analyticsBackendUrl + '?tiktok_bridge=1&session=' + encodeURIComponent(expectedSession) + '&tiktok_channel=' + encodeURIComponent(expectedChannel);
+        bridge.src = analyticsBackendUrl + '?tiktok_bridge=1&session=' + encodeURIComponent(expectedSession) + '&tiktok_channel=' + encodeURIComponent(expectedChannel) + '&public_origin=' + encodeURIComponent(window.location.origin);
         window.addEventListener('message', receiveBridgeMessage);
         document.body.appendChild(bridge);
       }
