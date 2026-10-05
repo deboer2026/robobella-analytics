@@ -60,9 +60,21 @@ states. It never logs or persists callback values.
 | `user.info.stats` | Display follower and engagement statistics | TikTok statistics panel |
 | `video.list` | Display public-video metadata and metrics | Recent TikTok videos |
 | `video.upload` | Transfer an explicitly selected local video to the creator's Inbox as a draft | TikTok Draft Upload section and Inbox instruction |
+| `video.publish` | Sandbox-only Direct Post after current creator info, selected settings, local MP4, and explicit consent | TikTok Direct Post — Sandbox panel |
 
-The implementation does not request or use `video.publish` and does not
-offer a Direct Post control.
+The Production read-only connection and Sandbox draft-upload authorization do
+not request `video.publish`. A separate Sandbox-only Direct Post flow asks for
+`video.publish`, fetches fresh creator information, and keeps the Production
+Direct Post route unavailable. Production Direct Post authorization remains
+disabled. The privacy dropdown lists only TikTok-returned options, has no
+preselected value, and requires the user to choose `SELF_ONLY`; other values are
+unavailable to this unaudited Sandbox client. The flow also requires explicit
+consent and applies TikTok's interaction and commercial-content disclosures.
+
+This implementation is preparation only. The release and runtime verification
+must not initialize a post, upload a video to TikTok, or claim a successful
+provider E2E. The one Sandbox `SELF_ONLY` test post requires a separate explicit
+user approval after the creator-information UI has been checked.
 
 ## Security boundary
 

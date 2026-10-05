@@ -148,7 +148,7 @@
       access is revoked or when deletion is requested.
     </p>
 
-    <h2>7. TikTok draft transfers</h2>
+    <h2>7. TikTok draft uploads and Sandbox Direct Post</h2>
     <p>
       When an authorized TikTok creator explicitly selects a supported local
       video and confirms a draft upload, the selected media is processed
@@ -157,6 +157,19 @@
       and temporary upload and session data is short-lived. The creator
       reviews, edits and completes any publication manually inside TikTok.
       The selected media is not stored in public Drive storage by this flow.
+    </p>
+    <p>
+      The separate TikTok Direct Post panel connects only to the TikTok Sandbox.
+      If a creator selects a video, chooses the available privacy and interaction
+      settings, and checks the explicit consent box, the selected media is sent
+      transiently to TikTok for a Direct Post. The creator's settings are fetched
+      from TikTok before each post attempt. The privacy dropdown lists only the
+      options returned by TikTok, starts with no selection, and requires the
+      creator to select SELF_ONLY; other privacy options are unavailable to this
+      unaudited Sandbox client. Posting is disabled if TikTok does not offer it.
+      Production Direct Post authorization and posting are not enabled.
+      Temporary publish status data is kept server-side for a short period;
+      credentials and upload URLs are not shown in the public interface.
     </p>
 
     <h2>8. Revoking access</h2>

@@ -537,6 +537,31 @@
               title="TikTok draft upload" allow="clipboard-write"></iframe>
           </div>
         </article>
+        <article class="card draft-upload-card" aria-labelledby="tiktok-direct-post-heading">
+          <div class="card-head">
+            <h2 id="tiktok-direct-post-heading">TikTok Direct Post — Sandbox</h2>
+            <span class="badge">Sandbox only</span>
+          </div>
+          <p>
+            Review the connected creator, current TikTok privacy options,
+            interaction settings, and video duration before a Direct Post.
+          </p>
+          <p class="sample-chart-caption">
+            Direct Post sends the selected video to TikTok for posting with the
+            choices you make. It is separate from the TikTok Draft Upload panel.
+            This unaudited Sandbox client permits only <strong>SELF_ONLY</strong>.
+            Select it yourself; no privacy option is preselected.
+          </p>
+          <p class="connection-status" id="tiktokDirectPostConnectionStatus" aria-live="polite">
+            AUTH_REQUIRED — Sandbox Direct Post authorization is required.
+          </p>
+          <button class="connect-button" id="connectTikTokDirectPost" type="button">
+            Connect TikTok for Direct Post — Sandbox
+          </button>
+          <p class="connection-status hidden" id="tiktokDirectPostHandshakeError" aria-live="polite"></p>
+          <iframe class="draft-upload-frame hidden" id="tiktokDirectPostFrame"
+            title="TikTok Direct Post — Sandbox" allow="clipboard-write"></iframe>
+        </article>
       </section>
     </section>
 
@@ -588,6 +613,15 @@
       var draftReady = document.getElementById('tiktokDraftReady');
       var draftFrame = document.getElementById('tiktokDraftFrame');
       var draftConnectButton = document.getElementById('connectTikTokDraft');
+      var directPostFrame = document.getElementById('tiktokDirectPostFrame');
+      var directPostConnectButton = document.getElementById('connectTikTokDirectPost');
+      var directPostStatus = document.getElementById('tiktokDirectPostConnectionStatus');
+      var directPostCapability = '';
+      var directPostChannel = '';
+      var directPostCapabilitySent = false;
+      var directPostRuntimeWindow = null;
+      var directPostHandshakeTimer = null;
+      var directPostHandshakeTimedOut = false;
       var draftRuntimeWindow = null;
       var draftHandshakeTimer = null;
       var draftHandshakeTimedOut = false;
@@ -651,6 +685,22 @@
         var candidate = fragment.get('tiktok_upload_capability');
         if (isOpaqueDraftValue(candidate)) draftCapability = candidate;
         fragment.delete('tiktok_upload_capability');
+        var remaining = fragment.toString();
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + window.location.search +
+            (remaining ? '#' + remaining : '')
+        );
+      }
+      function readDirectPostCapabilityFromFragment() {
+        var hash = window.location.hash || '';
+        if (hash.length < 2) return;
+        var fragment = new URLSearchParams(hash.slice(1));
+        if (!fragment.has('tiktok_direct_post_capability')) return;
+        var candidate = fragment.get('tiktok_direct_post_capability');
+        if (isOpaqueDraftValue(candidate)) directPostCapability = candidate;
+        fragment.delete('tiktok_direct_post_capability');
         var remaining = fragment.toString();
         window.history.replaceState(
           {},
@@ -748,6 +798,12 @@
           '?tiktok_action=sandbox_connect&public_origin=' +
           encodeURIComponent(window.location.origin));
       });
+      directPostConnectButton.addEventListener('click', function () {
+        directPostConnectButton.disabled = true;
+        directPostStatus.textContent = 'Opening Sandbox Direct Post authorization…';
+        window.location.assign(draftReviewBackendUrl +
+          '?tiktok_action=sandbox_direct_post_connect');
+      });
       function loadDraftUpload() {
         readDraftCapabilityFromFragment();
         if (!draftCapability) return;
@@ -823,6 +879,64 @@
         handshakeError.textContent = 'Secure draft-upload panel could not connect. Please reconnect TikTok.';
         handshakeError.classList.remove('hidden');
       }
+      function loadDirectPost() {
+        readDirectPostCapabilityFromFragment();
+        if (!directPostCapability) return;
+        directPostConnectButton.classList.add('hidden');
+        directPostFrame.classList.remove('hidden');
+        directPostChannel = createBridgeChannel();
+        directPostRuntimeWindow = null;
+        directPostCapabilitySent = false;
+        directPostHandshakeTimedOut = false;
+        var handshakeError = document.getElementById('tiktokDirectPostHandshakeError');
+        handshakeError.textContent = '';
+        handshakeError.classList.add('hidden');
+        directPostStatus.textContent = 'CREATOR_INFO_LOADING — Loading fresh TikTok creator information…';
+        window.addEventListener('message', receiveDirectPostMessage);
+        directPostFrame.src = draftReviewBackendUrl +
+          '?tiktok_direct_post=1&channel=' + encodeURIComponent(directPostChannel) +
+          '&public_origin=' + encodeURIComponent(window.location.origin);
+        directPostHandshakeTimer = window.setTimeout(failDirectPostHandshake, 9000);
+      }
+      function receiveDirectPostMessage(event) {
+        var allowedRuntime = /^https:\/\/(?:n-[a-z0-9-]+-script\.googleusercontent\.com|script\.google\.com)$/i;
+        var message = event.data;
+        if (!allowedRuntime.test(event.origin) ||
+            !directPostFrame || !event.source || typeof event.source.postMessage !== 'function' ||
+            !message || typeof message !== 'object' ||
+            message.type !== 'robobella:tiktok-direct-post-ready' ||
+            message.channel !== directPostChannel ||
+            directPostCapabilitySent || directPostHandshakeTimedOut || !directPostCapability) return;
+        if (directPostRuntimeWindow === null) directPostRuntimeWindow = event.source;
+        if (directPostRuntimeWindow !== event.source) return;
+        try {
+          directPostRuntimeWindow.postMessage({
+            type: 'robobella:tiktok-direct-post-capability',
+            channel: directPostChannel,
+            capability: directPostCapability
+          }, event.origin);
+        } catch (_) {
+          return;
+        }
+        directPostCapabilitySent = true;
+        clearDirectPostHandshakeTimer();
+        window.removeEventListener('message', receiveDirectPostMessage);
+      }
+      function clearDirectPostHandshakeTimer() {
+        if (directPostHandshakeTimer === null) return;
+        window.clearTimeout(directPostHandshakeTimer);
+        directPostHandshakeTimer = null;
+      }
+      function failDirectPostHandshake() {
+        directPostHandshakeTimer = null;
+        if (directPostCapabilitySent || directPostHandshakeTimedOut) return;
+        directPostHandshakeTimedOut = true;
+        window.removeEventListener('message', receiveDirectPostMessage);
+        var handshakeError = document.getElementById('tiktokDirectPostHandshakeError');
+        handshakeError.textContent = 'Sandbox Direct Post panel could not connect. Reconnect Sandbox TikTok.';
+        handshakeError.classList.remove('hidden');
+        directPostStatus.textContent = 'OPERATOR_REVIEW_REQUIRED';
+      }
       if (expectedSession) {
         status.textContent = 'Loading connected TikTok account…';
         expectedChannel = createBridgeChannel();
@@ -834,6 +948,7 @@
         document.body.appendChild(bridge);
       }
       loadDraftUpload();
+      loadDirectPost();
     }());
   </script>
 </body>
