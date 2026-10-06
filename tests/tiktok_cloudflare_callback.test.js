@@ -53,6 +53,21 @@ async function follow(url, method = 'GET') {
     assert.equal(new URL(result.location).searchParams.get('error'), 'access_denied');
   }
 
+  // Sandbox Direct Post intentionally uses the review-state prefix so the
+  // existing Cloudflare callback still forwards only to the Sandbox backend.
+  const directPostState = 'sbx_review_' + 'd'.repeat(64);
+  const directPostCallback = await follow(
+    'https://robobellaanalytics.pages.dev/tiktok/callback?code=direct-code&state=' +
+      directPostState
+  );
+  assert.equal(directPostCallback.status, 302);
+  const directPostTarget = new URL(directPostCallback.location);
+  assert.equal(
+    directPostTarget.origin + directPostTarget.pathname,
+    SANDBOX_CALLBACK
+  );
+  assert.equal(directPostTarget.searchParams.get('state'), directPostState);
+
   const errorResult = await follow(
     'https://robobellaanalytics.pages.dev/tiktok/callback?' +
       'state=' + 'c'.repeat(64) + '&error=access_denied&error_description=Not%20approved'
