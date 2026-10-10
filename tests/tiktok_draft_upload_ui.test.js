@@ -219,13 +219,32 @@ assert.equal(timeoutPosts.length, 0, 'timed-out handshake does not send late cap
 
 const privacy = fs.readFileSync('privacy.html', 'utf8');
 const terms = fs.readFileSync('terms.html', 'utf8');
-[privacy, terms].forEach((policy) => {
-  assert.match(policy, /TikTok/i);
-  assert.match(policy, /draft/i);
-  assert.match(policy, /transient/i);
-  assert.match(policy, /server-side/i);
-  assert.match(policy, /manually/i);
-});
+assert.match(privacy, /TikTok draft uploads/i);
+assert.match(privacy, /explicitly selects a supported local\s+video/i);
+assert.match(privacy, /processed transiently/i);
+assert.match(privacy, /TikTok Inbox as a\s+draft/i);
+assert.match(privacy, /does not automatically publish/i);
+assert.match(privacy, /reviews, edits and publishes any draft manually/i);
+assert.match(privacy, /TikTok\s+credentials remain server-side/i);
+assert.match(privacy, /temporary upload and session data is\s+short-lived/i);
+assert.match(privacy, /not stored in public Drive storage/i);
+assert.doesNotMatch(privacy, /Direct Post panel/i);
+assert.doesNotMatch(privacy, /video\.publish/i);
+assert.match(privacy, /Last updated: October 11, 2026/);
+
+assert.match(terms, /TikTok draft uploads/i);
+assert.match(terms, /sent to TikTok as a draft/i);
+assert.match(terms, /does not publish the video automatically/i);
+assert.match(terms, /manually publishing any draft\s+inside TikTok/i);
+assert.doesNotMatch(terms, /TikTok Direct Post — Sandbox/i);
+assert.doesNotMatch(terms, /Direct Post panel/i);
+assert.match(terms, /Last updated: October 11, 2026/);
+const termSectionNumbers = Array.from(terms.matchAll(/<h2>(\d+)\. /g), (match) => Number(match[1]));
+assert.deepEqual(
+  termSectionNumbers,
+  termSectionNumbers.map((_, index) => index + 1),
+  'Terms section numbering is sequential'
+);
 assert.match(source, /href="privacy\.html"/);
 assert.match(source, /href="terms\.html"/);
 assert.ok(fs.existsSync('privacy.html'));
