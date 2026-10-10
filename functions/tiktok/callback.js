@@ -17,6 +17,30 @@ const PARAMETER_LIMITS = {
   error_description: 2048
 };
 
+const CALLBACK_PATH = '/tiktok/callback';
+
+function recordCallbackDiagnostic(request, requestUrl, details) {
+  const diagnostic = {
+    timestamp: new Date().toISOString(),
+    path: CALLBACK_PATH,
+    method: request.method === 'GET' ? 'GET' : 'OTHER',
+    code_present: requestUrl.searchParams.has('code'),
+    state_present: requestUrl.searchParams.has('state'),
+    error_present: requestUrl.searchParams.has('error'),
+    error_description_present: requestUrl.searchParams.has('error_description'),
+    forward_attempted: details.forwardAttempted,
+    forward_target_class: details.forwardTargetClass,
+    // This is the Pages callback handler's response status. The handler uses
+    // a browser redirect, so it cannot observe the Apps Script response.
+    forward_http_status: details.responseStatus,
+    terminal_stage: details.terminalStage
+  };
+
+  // Never log requestUrl, query parameter values, response bodies, or errors.
+  // Pages Function logs are streamed, not persisted by this callback.
+  console.log(JSON.stringify(diagnostic));
+}
+
 function responseHeaders() {
   return {
     'Cache-Control': 'no-store',
@@ -46,7 +70,13 @@ function callbackTargetForState(state) {
     : '';
 }
 
-function badRequest(message) {
+function badRequest(message, request, requestUrl, forwardTargetClass = 'UNKNOWN') {
+  recordCallbackDiagnostic(request, requestUrl, {
+    forwardAttempted: false,
+    forwardTargetClass,
+    responseStatus: 400,
+    terminalStage: 'INPUT_REJECTED'
+  });
   return new Response(message, {
     status: 400,
     headers: responseHeaders()
@@ -54,20 +84,27 @@ function badRequest(message) {
 }
 
 export async function onRequest(context) {
+  const requestUrl = new URL(context.request.url);
+
   if (context.request.method !== 'GET') {
+    recordCallbackDiagnostic(context.request, requestUrl, {
+      forwardAttempted: false,
+      forwardTargetClass: 'UNKNOWN',
+      responseStatus: 405,
+      terminalStage: 'METHOD_REJECTED'
+    });
     return new Response('Method not allowed', {
       status: 405,
       headers: Object.assign(responseHeaders(), {Allow: 'GET'})
     });
   }
 
-  const requestUrl = new URL(context.request.url);
   const stateValues = requestUrl.searchParams.getAll('state');
   const state = stateValues.length === 1 ? stateValues[0] : '';
   const callbackTarget = callbackTargetForState(state);
 
   if (!callbackTarget || !isSafeParameter('state', state)) {
-    return badRequest('Invalid OAuth callback');
+    return badRequest('Invalid OAuth callback', context.request, requestUrl);
   }
 
   const codeValues = requestUrl.searchParams.getAll('code');
@@ -75,19 +112,43 @@ export async function onRequest(context) {
   const hasCode = codeValues.length === 1;
   const hasError = errorValues.length === 1;
   if (hasCode === hasError || codeValues.length > 1 || errorValues.length > 1) {
-    return badRequest('Invalid OAuth callback');
+    return badRequest(
+      'Invalid OAuth callback',
+      context.request,
+      requestUrl,
+      callbackTarget === SANDBOX_CALLBACK ? 'SANDBOX' : 'PRODUCTION'
+    );
   }
 
   const forward = new URL(callbackTarget);
   for (const name of ALLOWED_PARAMETERS) {
     const values = requestUrl.searchParams.getAll(name);
-    if (values.length > 1) return badRequest('Invalid OAuth callback');
+    if (values.length > 1) {
+      return badRequest(
+        'Invalid OAuth callback',
+        context.request,
+        requestUrl,
+        callbackTarget === SANDBOX_CALLBACK ? 'SANDBOX' : 'PRODUCTION'
+      );
+    }
     if (values.length === 0) continue;
     if (!isSafeParameter(name, values[0])) {
-      return badRequest('Invalid OAuth callback');
+      return badRequest(
+        'Invalid OAuth callback',
+        context.request,
+        requestUrl,
+        callbackTarget === SANDBOX_CALLBACK ? 'SANDBOX' : 'PRODUCTION'
+      );
     }
     forward.searchParams.set(name, values[0]);
   }
+
+  recordCallbackDiagnostic(context.request, requestUrl, {
+    forwardAttempted: true,
+    forwardTargetClass: callbackTarget === SANDBOX_CALLBACK ? 'SANDBOX' : 'PRODUCTION',
+    responseStatus: 302,
+    terminalStage: 'REDIRECT_ISSUED'
+  });
 
   return new Response(null, {
     status: 302,
