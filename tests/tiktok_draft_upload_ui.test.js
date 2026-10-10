@@ -7,8 +7,12 @@ const scriptMatch = source.match(/<script>\s*([\s\S]*?)\s*<\/script>/);
 assert.ok(scriptMatch, 'dashboard script is present');
 
 assert.match(source, /TikTok Draft Upload/);
+assert.match(source, /Creator-controlled/);
+assert.match(source, /authorized TikTok creator's\s+Inbox as a draft/);
 assert.match(source, /Connect TikTok for draft upload/);
 assert.match(source, /Upload to TikTok as draft/);
+assert.match(source, /Maximum size: 40 MB/);
+assert.match(source, /https:\/\/robobellaanalytics\.pages\.dev\//);
 assert.match(source, /This does not publish your video/);
 assert.match(source, /TikTok sends the draft to your\s+Inbox/);
 assert.match(source, /tiktok_upload_capability/);
@@ -19,22 +23,16 @@ assert.match(source, /tiktok_upload=1/);
 assert.match(source, /Supported formats: MP4, QuickTime and WebM/);
 assert.match(source, /video\.upload/);
 assert.match(source, /tiktokDraftFrame/);
-assert.match(source, /TikTok Direct Post — Sandbox/);
-assert.match(source, /Connect TikTok for Direct Post — Sandbox/);
-assert.match(source, /sandbox_direct_post_connect/);
-assert.match(source, /tiktok_direct_post_capability/);
-assert.match(source, /tiktok_direct_post=1/);
-assert.match(source, /SELF_ONLY/);
+assert.match(source, /Connect TikTok/);
+assert.doesNotMatch(source, /Direct Post|video\.publish/i);
+assert.doesNotMatch(source, /tiktok-direct-post-heading|tiktokDirectPostFrame|tiktokDirectPostConnectionStatus/);
+assert.doesNotMatch(source, /sandbox_direct_post_connect/);
 
 assert.match(scriptMatch[1], /draftCapability/);
 assert.match(scriptMatch[1], /analyticsBackendUrl/);
 assert.match(scriptMatch[1], /draftReviewBackendUrl/);
 assert.match(scriptMatch[1], /draftReviewBackendUrl\s*\+\s*['"]\?tiktok_upload=1&channel=/);
-assert.match(scriptMatch[1], /draftReviewBackendUrl\s*\+\s*['"]\?tiktok_direct_post=1&channel=/);
-assert.match(scriptMatch[1], /tiktok_action=sandbox_direct_post_connect/);
-assert.match(scriptMatch[1], /directPostConnectButton\.addEventListener[\s\S]*?draftReviewBackendUrl[\s\S]*?tiktok_action=sandbox_direct_post_connect/);
-assert.match(scriptMatch[1], /directPostFrame\.src\s*=\s*draftReviewBackendUrl/);
-assert.match(scriptMatch[1], /directPostFrame\.src\s*=\s*draftReviewBackendUrl[\s\S]*?tiktok_direct_post=1&channel=[\s\S]*?public_origin=/);
+assert.doesNotMatch(scriptMatch[1], /directPost|tiktok_direct_post|sandbox_direct_post_connect/i);
 assert.match(scriptMatch[1], /postMessage/);
 assert.equal(/event\.source\s*!==\s*draftFrame\.contentWindow/.test(scriptMatch[1]), false);
 assert.match(scriptMatch[1], /draftRuntimeWindow/);
@@ -51,7 +49,6 @@ assert.notEqual(
 );
 
 assert.equal(/robobellachan/i.test(source), false);
-assert.match(source, /Direct Post sends the selected video to TikTok/);
 assert.equal(/open[_-]?id/i.test(source), false);
 assert.equal(/publish[_-]?id/i.test(source), false);
 assert.equal(/upload[_-]?url/i.test(source), false);
@@ -61,7 +58,7 @@ assert.equal(/setInterval/.test(scriptMatch[1]), false);
 
 new Function(scriptMatch[1]);
 
-function createDashboardPage(capability, fragmentKey = 'tiktok_upload_capability') {
+function createDashboardPage(capability) {
   const elements = new Map();
   const listeners = {};
   const timers = [];
@@ -70,7 +67,7 @@ function createDashboardPage(capability, fragmentKey = 'tiktok_upload_capability
     location: {
       pathname: '/',
       search: '',
-      hash: capability ? '#' + fragmentKey + '=' + capability : ''
+      hash: capability ? '#tiktok_upload_capability=' + capability : ''
     },
     crypto: {
       getRandomValues(bytes) {
@@ -220,35 +217,6 @@ timeoutHandler({
 });
 assert.equal(timeoutPosts.length, 0, 'timed-out handshake does not send late capability');
 
-const directPage = createDashboardPage(capability, 'tiktok_direct_post_capability');
-const directFrame = directPage.element('tiktokDirectPostFrame');
-const directChannel = new URL(directFrame.src).searchParams.get('channel');
-assert.match(directFrame.src, /tiktok_direct_post=1/);
-assert.equal(directFrame.src.includes(capability), false);
-const directPosts = [];
-const directRuntime = {postMessage(...args) { directPosts.push(args); }};
-const directHandler = directPage.listeners.message[0];
-directHandler({
-  origin: 'https://evil.example',
-  source: {postMessage() {}},
-  data: {type: 'robobella:tiktok-direct-post-ready', channel: directChannel}
-});
-assert.equal(directPosts.length, 0, 'untrusted origins cannot receive a Direct Post capability');
-directHandler({
-  origin: runtimeOrigin,
-  source: directRuntime,
-  data: {type: 'robobella:tiktok-direct-post-ready', channel: directChannel}
-});
-assert.equal(directPosts.length, 1);
-assert.equal(directPosts[0][0].type, 'robobella:tiktok-direct-post-capability');
-assert.equal(directPosts[0][0].channel, directChannel);
-assert.equal(directPosts[0][0].capability, capability);
-assert.equal(directPosts[0][1], runtimeOrigin);
-assert.equal(directPage.historyCalls[0][2].includes(capability), false);
-const noDirectCapabilityPage = createDashboardPage('', 'tiktok_direct_post_capability');
-assert.equal(noDirectCapabilityPage.element('tiktokDirectPostFrame').src, '');
-assert.equal((noDirectCapabilityPage.listeners.message || []).length, 0);
-
 const privacy = fs.readFileSync('privacy.html', 'utf8');
 const terms = fs.readFileSync('terms.html', 'utf8');
 [privacy, terms].forEach((policy) => {
@@ -260,5 +228,8 @@ const terms = fs.readFileSync('terms.html', 'utf8');
 });
 assert.match(source, /href="privacy\.html"/);
 assert.match(source, /href="terms\.html"/);
+assert.ok(fs.existsSync('privacy.html'));
+assert.ok(fs.existsSync('terms.html'));
+assert.ok(fs.existsSync('app-icon.png'));
 
 console.log('tiktok draft upload UI tests passed');

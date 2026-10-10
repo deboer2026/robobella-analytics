@@ -2,12 +2,15 @@
 
 ## Review status
 
-The public-domain draft-upload surface and its Sandbox Apps Script backend
-are implemented in the review branches for this change. The flow remains
-`REVIEW_UI_BLOCKER` until the branches are merged, the reviewed Apps Script
-source is deployed to the existing Sandbox Web App deployment, and a real
-Sandbox E2E run on the public domain succeeds. No Production `video.upload`
-scope or Production deployment is changed by this implementation.
+The Production review submission covers TikTok Login Kit and the Content
+Posting API Upload API with the `video.upload` scope. Direct Post and
+`video.publish` are not part of this Production revision.
+
+For Content Posting review, the public Cloudflare Pages UI exposes the TikTok
+Draft Upload flow only. The existing Sandbox-only Direct Post backend and its
+isolated testing capability are retained separately for future testing; this
+public UI cleanup does not delete that backend and does not expose it on the
+review-facing page. This change does not deploy Cloudflare Pages or Apps Script.
 
 ## Product flow
 
@@ -25,7 +28,8 @@ hard-coded. The public site provides:
 
 The draft is not published automatically. The creator opens the TikTok Inbox,
 reviews and edits the draft, and completes publication manually in TikTok.
-Direct Post is not part of this flow.
+The public review page contains no Direct Post card, iframe, or Direct Post
+authorization action.
 
 ## Cloudflare Pages review configuration
 
@@ -60,25 +64,16 @@ states. It never logs or persists callback values.
 | `user.info.stats` | Display follower and engagement statistics | TikTok statistics panel |
 | `video.list` | Display public-video metadata and metrics | Recent TikTok videos |
 | `video.upload` | Transfer an explicitly selected local video to the creator's Inbox as a draft | TikTok Draft Upload section and Inbox instruction |
-| `video.publish` | Sandbox-only Direct Post after current creator info, selected settings, local MP4, and explicit consent | TikTok Direct Post — Sandbox panel |
+| `video.publish` | Not requested in the Production revision | No Direct Post control or authorization action on the public review page |
 
-The Production read-only connection and Sandbox draft-upload authorization do
-not request `video.publish`. A separate Sandbox-only Direct Post flow asks for
-`video.publish`, fetches fresh creator information, and keeps the Production
-Direct Post route unavailable. Production Direct Post authorization remains
-disabled. The privacy dropdown lists only TikTok-returned options, has no
-preselected value, and requires the user to choose `SELF_ONLY`; other values are
-unavailable to this unaudited Sandbox client. The flow also requires explicit
-consent and applies TikTok's interaction and commercial-content disclosures.
-
-This implementation is preparation only. The release and runtime verification
-must not initialize a post, upload a video to TikTok, or claim a successful
-provider E2E. The one Sandbox `SELF_ONLY` test post requires a separate explicit
-user approval after the creator-information UI has been checked.
+The Production Content Posting review requests `video.upload` only. The
+separate Sandbox-only Direct Post backend/testing capability is retained
+outside the public review UI; its existence does not add `video.publish` to
+the Production revision.
 
 ## Security boundary
 
-GitHub Pages is the visible product UI. The existing Apps Script Web App is
+Cloudflare Pages is the visible product UI. The existing Apps Script Web App is
 the OAuth and Content Posting backend. Apps Script receives the selected file
 through an HTML-Service form Blob and transfers it transiently; the browser
 does not receive an access token, authorization code, upload URL, upload
