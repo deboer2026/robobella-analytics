@@ -10,7 +10,8 @@ For Content Posting review, the public Cloudflare Pages UI exposes the TikTok
 Draft Upload flow only. The existing Sandbox-only Direct Post backend and its
 isolated testing capability are retained separately for future testing; this
 public UI cleanup does not delete that backend and does not expose it on the
-review-facing page. This change does not deploy Cloudflare Pages or Apps Script.
+review-facing page. The website remediation updates the existing Cloudflare
+Pages site; it does not deploy or change the Apps Script backend.
 
 ## Product flow
 
@@ -36,24 +37,29 @@ authorization action.
 The primary review surface is the free Cloudflare Pages hostname
 `https://robobellaanalytics.pages.dev/`. The existing GitHub Pages origin is
 retained as an allowlisted legacy origin for already deployed sessions; it is
-not the primary review URL.
+not the primary review URL. The Website URL and Desktop URL identify the same
+public service website. They are platform information fields, not Login Kit
+callback addresses.
 
 | Portal/configuration field | Value |
 | --- | --- |
 | App name | `RoboBella Analytics` |
 | Website URL | `https://robobellaanalytics.pages.dev/` |
+| Desktop URL | `https://robobellaanalytics.pages.dev/` |
 | Privacy Policy URL | `https://robobellaanalytics.pages.dev/privacy.html` |
 | Terms of Service URL | `https://robobellaanalytics.pages.dev/terms.html` |
-| Redirect domain | `robobellaanalytics.pages.dev` |
-| Redirect URI | `https://robobellaanalytics.pages.dev/tiktok/callback` |
+| Web Login Kit callback | `https://robobellaanalytics.pages.dev/tiktok/callback` |
+| Desktop Login Kit callback | `http://127.0.0.1:*/tiktok/oauth/callback/` |
 
-The Apps Script `TIKTOK_REDIRECT_URI` and
-`TIKTOK_SANDBOX_REDIRECT_URI` Script Properties must be changed manually to
-the exact callback URI above before an OAuth test. Source code does not write
-or expose Script Properties. The Cloudflare callback accepts only `GET`,
-validates the OAuth state shape, forwards only `code`, `state`, `error` and
-`error_description`, and routes sandbox states separately from production
-states. It never logs or persists callback values.
+The Web and Desktop Login Kit callbacks are configured separately. The
+Desktop callback remains the local loopback URI shown above; it must not be
+replaced with the public Website or Desktop URL. The Apps Script
+`TIKTOK_REDIRECT_URI` and `TIKTOK_SANDBOX_REDIRECT_URI` Script Properties
+refer to the Web flow. Source code does not write or expose Script Properties.
+The Cloudflare Web callback accepts only `GET`, validates the OAuth state
+shape, forwards only `code`, `state`, `error` and `error_description`, and
+routes sandbox states separately from production states. It never logs or
+persists callback values.
 
 ## Scope mapping
 
