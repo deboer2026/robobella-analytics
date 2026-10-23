@@ -4,7 +4,13 @@ const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const test = require('node:test');
-const {CONFIRMATION_FLAG} = require('../scripts/deploy-pages-production.cjs');
+const {
+  CONFIRMATION_FLAG,
+  REMOTE_MAIN_PROOF_MAX_AGE_MS,
+  REMOTE_MAIN_SHA_ENV,
+  REMOTE_MAIN_VERIFIED_AT_ENV,
+  validatePowerShellRemoteMainProof
+} = require('../scripts/deploy-pages-production.cjs');
 const {PRODUCTION_CALLBACK_URL, resolveTarget} = require('../scripts/smoke-pages-callback.cjs');
 const {
   EXPECTED_GIT_ORIGIN,
@@ -71,7 +77,11 @@ test('deploy contract pins the repo, existing project, production branch, and ex
   const contract = fs.readFileSync(path.join(root, 'scripts', 'pages-deploy-contract.cjs'), 'utf8');
   assert.equal(EXPECTED_GIT_ORIGIN, 'https://github.com/deboer2026/robobella-analytics.git');
   assert.equal(CONFIRMATION_FLAG, '--confirm-existing-production');
-  assert.match(source, /runGit\(\['ls-remote', 'origin', 'refs\/heads\/main'\]\)/);
+  assert.equal(REMOTE_MAIN_SHA_ENV, 'RB_PAGES_VERIFIED_ORIGIN_MAIN_SHA');
+  assert.equal(REMOTE_MAIN_VERIFIED_AT_ENV, 'RB_PAGES_VERIFIED_ORIGIN_MAIN_AT_MS');
+  assert.equal(REMOTE_MAIN_PROOF_MAX_AGE_MS, 120000);
+  assert.equal(source.includes("runGit(['ls-remote', 'origin', 'refs/heads/main'])"), false);
+  assert.match(source, /validatePowerShellRemoteMainProof\(/);
   assert.match(source, /runJsonWrangler\(\['pages', 'project', 'list'\]\)/);
   assert.match(source, /'pages', 'deployment', 'list'/);
   assert.match(source, /'pages', 'deploy'/);
@@ -81,6 +91,32 @@ test('deploy contract pins the repo, existing project, production branch, and ex
   assert.match(source, /`--package=wrangler@\$\{WRANGLER_VERSION\}`/);
   assert.equal(/pages project create|wrangler login/i.test(source + contract), false);
   assert.match(source, /--confirm-existing-production/);
+});
+
+test('PowerShell remote-main proof is fresh, well-formed, and bound to local HEAD', () => {
+  const sha = 'd6fd309d376351c78cfbfe46891bce635cebdb36';
+  const now = 1792800000000;
+  assert.equal(validatePowerShellRemoteMainProof(sha, sha, String(now), now), sha);
+  assert.throws(() => validatePowerShellRemoteMainProof(sha, '', String(now), now), /REMOTE_MAIN_PREFLIGHT_INVALID/);
+  assert.throws(() => validatePowerShellRemoteMainProof(sha, 'not-a-sha', String(now), now), /REMOTE_MAIN_PREFLIGHT_INVALID/);
+  assert.throws(() => validatePowerShellRemoteMainProof(sha, 'a'.repeat(40), String(now), now), /LOCAL_MAIN_NOT_CURRENT/);
+  assert.throws(() => validatePowerShellRemoteMainProof(sha, sha, String(now - REMOTE_MAIN_PROOF_MAX_AGE_MS - 1), now), /REMOTE_MAIN_PREFLIGHT_STALE/);
+  assert.throws(() => validatePowerShellRemoteMainProof(sha, sha, String(now + 5001), now), /REMOTE_MAIN_PREFLIGHT_STALE/);
+});
+
+test('PowerShell wrapper performs the remote read and passes a fresh non-secret SHA proof to Node', () => {
+  const source = fs.readFileSync(path.join(root, 'scripts', 'deploy-pages-production.cjs'), 'utf8');
+  const wrapper = fs.readFileSync(path.join(root, 'scripts', 'deploy-pages-production.ps1'), 'utf8');
+  assert.match(wrapper, /git ls-remote origin refs\/heads\/main/);
+  assert.match(wrapper, /RB_PAGES_VERIFIED_ORIGIN_MAIN_SHA/);
+  assert.match(wrapper, /RB_PAGES_VERIFIED_ORIGIN_MAIN_AT_MS/);
+  assert.match(wrapper, /deploy-pages-production\.cjs/);
+  assert.match(wrapper, /--confirm-existing-production/);
+  assert.equal(/wrangler login|pages project create/i.test(wrapper), false);
+  const deployStart = source.indexOf("'pages', 'deploy'");
+  const lastCheckoutPreflight = source.lastIndexOf('verifyReleaseCheckout();');
+  assert.ok(deployStart >= 0);
+  assert.ok(lastCheckoutPreflight >= 0 && lastCheckoutPreflight < deployStart);
 });
 
 test('production deployment command stops before external calls without explicit confirmation', () => {
