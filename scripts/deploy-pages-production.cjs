@@ -17,6 +17,9 @@ const {PRODUCTION_CALLBACK_URL} = require('./smoke-pages-callback.cjs');
 const repoRoot = path.resolve(__dirname, '..');
 const npxCli = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js');
 const CONFIRMATION_FLAG = '--confirm-existing-production';
+const REMOTE_MAIN_SHA_ENV = 'RB_PAGES_VERIFIED_ORIGIN_MAIN_SHA';
+const REMOTE_MAIN_VERIFIED_AT_ENV = 'RB_PAGES_VERIFIED_ORIGIN_MAIN_AT_MS';
+const REMOTE_MAIN_PROOF_MAX_AGE_MS = 120000;
 
 function taskError(code) {
   const error = new Error(code);
@@ -32,6 +35,25 @@ function runGit(args) {
   });
   if (result.error || result.status !== 0) throw taskError('GIT_PREFLIGHT_FAILED');
   return result.stdout.trim();
+}
+
+function validatePowerShellRemoteMainProof(localHead, remoteHead, verifiedAtMs, now = Date.now()) {
+  if (!/^[a-f0-9]{40}$/i.test(localHead || '') ||
+      !/^[a-f0-9]{40}$/i.test(remoteHead || '') ||
+      !/^\d{13}$/.test(String(verifiedAtMs || ''))) {
+    throw taskError('REMOTE_MAIN_PREFLIGHT_INVALID');
+  }
+
+  const verifiedAt = Number(verifiedAtMs);
+  if (!Number.isSafeInteger(verifiedAt) ||
+      verifiedAt > now + 5000 ||
+      now - verifiedAt > REMOTE_MAIN_PROOF_MAX_AGE_MS) {
+    throw taskError('REMOTE_MAIN_PREFLIGHT_STALE');
+  }
+  if (localHead.toLowerCase() !== remoteHead.toLowerCase()) {
+    throw taskError('LOCAL_MAIN_NOT_CURRENT');
+  }
+  return remoteHead.toLowerCase();
 }
 
 function runWrangler(args, timeout = 120000) {
@@ -75,12 +97,11 @@ function verifyReleaseCheckout() {
   if (runGit(['status', '--porcelain'])) throw taskError('CLEAN_WORKTREE_REQUIRED');
 
   const localHead = runGit(['rev-parse', 'HEAD']);
-  const remoteRows = runGit(['ls-remote', 'origin', 'refs/heads/main'])
-    .split(/\r?\n/)
-    .filter(Boolean);
-  if (remoteRows.length !== 1) throw taskError('REMOTE_MAIN_READ_FAILED');
-  const remoteHead = remoteRows[0].split(/\s+/)[0];
-  if (!localHead || localHead !== remoteHead) throw taskError('LOCAL_MAIN_NOT_CURRENT');
+  validatePowerShellRemoteMainProof(
+    localHead,
+    process.env[REMOTE_MAIN_SHA_ENV],
+    process.env[REMOTE_MAIN_VERIFIED_AT_ENV]
+  );
 }
 
 function verifyCloudflareTarget() {
@@ -179,6 +200,9 @@ async function main(args) {
   let stage;
   try {
     stage = prepareStage();
+    // Cloudflare reads and staging may take long enough to stale the parent-shell proof.
+    // Recheck checkout cleanliness, HEAD, and proof freshness immediately before the write.
+    verifyReleaseCheckout();
     runWrangler([
       'pages', 'deploy', stage.outputDirectory,
       `--project-name=${PAGES_PROJECT_NAME}`,
@@ -204,6 +228,10 @@ if (require.main === module) {
 
 module.exports = {
   CONFIRMATION_FLAG,
+  REMOTE_MAIN_SHA_ENV,
+  REMOTE_MAIN_VERIFIED_AT_ENV,
+  REMOTE_MAIN_PROOF_MAX_AGE_MS,
+  validatePowerShellRemoteMainProof,
   verifyCloudflareTarget,
   verifyProductionRoute,
   verifyReleaseCheckout
